@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>육보 리듬 게임</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .instrument {
+            display: inline-block;
+            margin: 0;
+            position: relative;
+            text-align: center; /* 중앙으로 정렬 */
+        }
+        .instrument img {
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+        }
+        .note {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+        }
+        #inputForm {
+            margin-bottom: 10px;
+        }
+        #rythmInput {
+            height: auto;
+            overflow: auto;
+            width: 300px; /* 원래 크기로 돌아가기 위해 폭을 지정 */
+        }
+        #gameCanvas {
+            border: 1px solid #000;
+            display: block;
+            margin: 0 auto;
+            position: relative;
+            width: 320px;
+            height: 360px;
+        }
+        #instrumentContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: -20px; /* 게임 캔버스와의 간격을 더 줄이기 위해 음수 값 사용 */
+        }
+        .instrument {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* 중앙 정렬 */
+        }
+        .instrument p.description {
+            font-size: 12px;
+            color: gray;
+        }
+        #score {
+            margin-top: 5px;
+            font-size: 18px;
+        }
+        h1 {
+            font-size: 20px;
+        }
+        #instructions {
+            font-size: 14px;
+            color: red;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>육보 리듬 게임</h1>
+    <p id="instructions">모든 음을 띄워쓰세요. 예: 갠 지 덩 쿵 덕</p>
+    <div id="inputForm">
+        <label for="rythmInput">육보 입력:</label>
+        <textarea id="rythmInput" placeholder="예: 갠 지 덩 쿵 덕" rows="1" oninput="autoGrow(this)"></textarea>
+        <button onclick="startGame()">시작</button>
+    </div>
+    <p id="score">점수: 0</p>
+    <canvas id="gameCanvas" width="320" height="360"></canvas>
+    <div id="instrumentContainer">
+        <div class="instrument" id="kkwaenggari">
+            <img src="images/Kkwaenggwari.jpg" alt="꽹가리">
+            <p>꽹가리</p>
+            <p class="description">갠=갱, 지</p>
+        </div>
+        <div class="instrument" id="jing">
+            <img src="images/jing.jpeg" alt="징">
+            <p>징</p>
+            <p class="description">징</p>
+        </div>
+        <div class="instrument" id="buk">
+            <img src="images/buk.png" alt="북">
+            <p>북</p>
+            <p class="description">둥, 두</p>
+        </div>
+        <div class="instrument" id="janggu">
+            <img src="images/janggu.jpg" alt="장구">
+            <p>장구</p>
+            <p class="description">덩, 기덕, 쿵, 더러러러, 덕</p>
+        </div>
+    </div>
+    <audio id="audio_kkwaenggwari_gan" src="audio/Kkwaenggwari_gang_1.mp3" preload="auto"></audio>
+    <audio id="audio_kkwaenggwari_ji" src="audio/Kkwaenggwari_ji_1.mp3" preload="auto"></audio>
+    <audio id="audio_jing_jing" src="audio/jing_1.mp3" preload="auto"></audio>
+    <audio id="audio_buk_dung" src="audio/buk_dung.mp3" preload="auto"></audio>
+    <audio id="audio_buk_du" src="audio/buk_du.mp3" preload="auto"></audio>
+    <audio id="audio_janggu_dung" src="audio/Janggu_dung_1.mp3" preload="auto"></audio>
+    <audio id="audio_janggu_giduk" src="audio/Janggu_giduk_1.mp3" preload="auto"></audio>
+    <audio id="audio_janggu_kung" src="audio/Janggu_kung_1.mp3" preload="auto"></audio>
+    <audio id="audio_janggu_durururu" src="audio/Janggu_durururu_1.mp3" preload="auto"></audio>
+    <audio id="audio_janggu_duk" src="audio/Janggu_duk_1.mp3" preload="auto"></audio>
+    <script>
+        function autoGrow(element) {
+            element.style.height = "5px";
+            element.style.height = (element.scrollHeight) + "px";
+        }
+
+        const instrumentSounds = {
+            kkwaenggari: {
+                '갠': document.getElementById('audio_kkwaenggwari_gan'),
+                '지': document.getElementById('audio_kkwaenggwari_ji')
+            },
+            jing: {
+                '징': document.getElementById('audio_jing_jing')
+            },
+            buk: {
+                '둥': document.getElementById('audio_buk_dung'),
+                '두': document.getElementById('audio_buk_du')
+            },
+            janggu: {
+                '덩': document.getElementById('audio_janggu_dung'),
+                '기덕': document.getElementById('audio_janggu_giduk'),
+                '쿵': document.getElementById('audio_janggu_kung'),
+                '더러러러': document.getElementById('audio_janggu_durururu'),
+                '덕': document.getElementById('audio_janggu_duk')
+            }
+        };
+
+        const instrumentElements = document.querySelectorAll('.instrument');
+        const instrumentIds = ['kkwaenggari', 'jing', 'buk', 'janggu'];
+
+        let score = 0;
+        let notes = [];
+        let userInput = '';
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameInterval;
+
+        instrumentElements.forEach(inst => {
+            inst.addEventListener('click', () => {
+                const id = inst.id;
+                checkHit(id);
+            });
+        });
+
+        function startGame() {
+            userInput = document.getElementById('rythmInput').value.split(' ');
+            notes = userInput.map((note, index) => {
+                const instrument = noteToInstrument(note);
+                const x = instrumentIds.indexOf(instrument) * 80;
+                return { x: x, y: -80 * (index + 1), id: instrument, text: note };
+            });
+            score = 0;
+            document.getElementById('score').textContent = '점수: ' + score;
+            if (gameInterval) {
+                clearInterval(gameInterval);
+            }
+            gameInterval = setInterval(gameLoop, 20);
+        }
+
+        function noteToInstrument(note) {
+            if (['갠', '지'].includes(note)) return 'kkwaenggari';
+            if (note === '징') return 'jing';
+            if (['둥', '두'].includes(note)) return 'buk';
+            if (['덩', '기덕', '쿵', '더러러러', '덕'].includes(note)) return 'janggu';
+            return 'kkwaenggari';
+        }
+
+        function playSound(note) {
+            for (const instrument in instrumentSounds) {
+                if (instrumentSounds[instrument][note]) {
+                    instrumentSounds[instrument][note].play();
+                }
+            }
+        }
+
+        function drawNotes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 타점 선 그리기
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 350, canvas.width, 10); // 350 위치에 타점 선 그리기
+            
+            notes.forEach(note => {
+                note.y += 2;
+                ctx.fillStyle = noteColor(note.id);
+                ctx.fillRect(note.x, note.y, 80, 80);
+                ctx.fillStyle = 'white';
+                ctx.fillText(note.text, note.x + 5, note.y + 50);
+            });
+        }
+
+        function noteColor(instrumentId) {
+            switch (instrumentId) {
+                case 'kkwaenggari': return 'purple';
+                case 'jing': return 'orange';
+                case 'buk': return 'skyblue';
+                case 'janggu': return 'pink';
+                default: return 'red';
+            }
+        }
+
+        function checkHit(instrumentId) {
+            const threshold = 350;
+            notes = notes.filter(note => {
+                if (note.y > threshold && note.y < threshold + 80 && note.id === instrumentId) {
+                    playSound(note.text);
+                    score += 10;
+                    document.getElementById('score').textContent = '점수: ' + score;
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        function gameLoop() {
+            drawNotes();
+            if (notes.length === 0) {
+                clearInterval(gameInterval);
+                alert('게임 종료! 최종 점수: ' + score);
+            }
+        }
+    </script>
+</body>
+</html>
